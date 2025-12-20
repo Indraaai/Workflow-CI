@@ -18,24 +18,28 @@ Workflow CI/CD ini dirancang untuk melakukan **automated machine learning model 
 ## 📋 Fitur Workflow
 
 ### 1. **Automated ML Training**
+
 - Training model Gradient Boosting Classifier
 - Menggunakan MLflow untuk tracking experiments
 - Hyperparameters configurable
 - Metrics & artifacts logging
 
 ### 2. **Docker Integration**
+
 - Build Docker image dari trained model
 - Push ke Docker Hub (optional)
 - Image ready untuk deployment
 - Tags: `latest` dan `<commit-sha>`
 
 ### 3. **Artifact Management**
+
 - Upload model artifacts ke GitHub
 - MLflow runs & training logs
 - Retention 30 hari
 - Easy download & reproducibility
 
 ### 4. **Environment Variables**
+
 - Dataset path configuration
 - Target variable specification
 - Easy customization
@@ -89,6 +93,7 @@ env:
 ### Dependencies
 
 Defined in `MLProject/conda.yaml`:
+
 - Python 3.12.7
 - MLflow 2.19.0
 - Pandas 2.3.3
@@ -99,6 +104,7 @@ Defined in `MLProject/conda.yaml`:
 ### Model Hyperparameters
 
 Configurable via `MLProject/MLProject`:
+
 - `test_size`: 0.2
 - `random_state`: 42
 - `n_estimators`: 100
@@ -128,20 +134,22 @@ Configurable via `MLProject/MLProject`:
 ## 📦 Output & Artifacts
 
 ### 1. GitHub Artifacts
+
 - **Name**: `trained-model-<commit-sha>`
-- **Contents**: 
+- **Contents**:
   - MLflow runs (model, metrics, parameters)
   - Training logs
 - **Retention**: 30 days
 - **Access**: GitHub Actions → Workflow Run → Artifacts
 
 ### 2. Docker Images
+
 - **Registry**: Docker Hub
 - **Repository**: `<username>/diabetes-model`
 - **Tags**:
   - `latest` - latest version
   - `<commit-sha>` - specific commit version
-- **Pull command**: 
+- **Pull command**:
   ```bash
   docker pull <username>/diabetes-model:latest
   ```
@@ -151,7 +159,9 @@ Configurable via `MLProject/MLProject`:
 ## � Quick Start
 
 ### **Option 1: Baca Panduan Lengkap** 📖
+
 Untuk setup step-by-step lengkap, baca:
+
 - 🚀 **[QUICKSTART.md](QUICKSTART.md)** - Panduan 5 menit
 - 📚 **[SETUP_GITHUB_ACTIONS.md](SETUP_GITHUB_ACTIONS.md)** - Setup lengkap
 - 🐳 **[DOCKER_SETUP.md](DOCKER_SETUP.md)** - Docker Hub integration
@@ -204,11 +214,11 @@ Edit file `MLProject/MLProject`:
 entry_points:
   main:
     parameters:
-      test_size: {type: float, default: 0.3}      # Ubah sesuai kebutuhan
-      random_state: {type: int, default: 123}
-      n_estimators: {type: int, default: 200}
-      learning_rate: {type: float, default: 0.05}
-      max_depth: {type: int, default: 7}
+      test_size: { type: float, default: 0.3 } # Ubah sesuai kebutuhan
+      random_state: { type: int, default: 123 }
+      n_estimators: { type: int, default: 200 }
+      learning_rate: { type: float, default: 0.05 }
+      max_depth: { type: int, default: 7 }
     command: "python modelling.py ..."
 ```
 
@@ -221,11 +231,11 @@ Edit `.github/workflows/ci.yml`:
 ```yaml
 on:
   push:
-    branches: 
+    branches:
       - main
-      - develop    # Tambahkan branch lain
+      - develop # Tambahkan branch lain
   pull_request:
-    branches: 
+    branches:
       - main
 ```
 
@@ -249,9 +259,11 @@ Checklist untuk memastikan mendapat 4 pts:
 ## � Troubleshooting
 
 ### ❌ Workflow Gagal di Step "Verify Dataset"
+
 **Penyebab**: Dataset tidak ditemukan
 
 **Solusi**:
+
 ```powershell
 # Pastikan dataset ada
 ls MLProject\diabetes_prediction_dataset\data_clean.csv
@@ -261,26 +273,32 @@ cp ..\Membangun_model_Indra\diabetes_prediction_dataset\data_clean.csv MLProject
 ```
 
 ### ❌ Docker Push Denied
+
 **Penyebab**: Docker Hub credentials tidak valid
 
 **Solusi**:
+
 1. Generate new token di Docker Hub
 2. Update secrets di GitHub:
    - `DOCKER_HUB_USERNAME`
    - `DOCKER_HUB_ACCESS_TOKEN`
 
 ### ❌ MLflow Run Failed
+
 **Penyebab**: Error saat training
 
 **Solusi**:
+
 - Check logs di step "Run MLflow Project"
 - Test lokal: `mlflow run MLProject --env-manager=local`
 - Verify dependencies di `conda.yaml`
 
 ### ❌ Git Push Authentication Error
+
 **Penyebab**: Credentials tidak valid
 
 **Solusi**: Gunakan Personal Access Token (PAT)
+
 1. GitHub → Settings → Developer settings → Personal access tokens
 2. Generate token dengan scope `repo` & `workflow`
 3. Gunakan token sebagai password saat push

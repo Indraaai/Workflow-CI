@@ -3,6 +3,7 @@ import numpy as np
 import logging
 import time
 import argparse
+import os
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler
@@ -10,6 +11,10 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 import mlflow
 import mlflow.sklearn
 from pathlib import Path
+
+# Clear any existing MLflow run ID to avoid conflicts
+if 'MLFLOW_RUN_ID' in os.environ:
+    del os.environ['MLFLOW_RUN_ID']
 
 # Konfigurasi Logging
 logging.basicConfig(
@@ -179,6 +184,10 @@ def main():
     args = parser.parse_args()
     
     try:
+        # Setup MLflow tracking
+        mlflow.set_tracking_uri("file:./mlruns")
+        mlflow.set_experiment("diabetes_prediction")
+        
         logger.info("="*60)
         logger.info("MEMULAI TRAINING GRADIENT BOOSTING MODEL")
         logger.info("="*60)
