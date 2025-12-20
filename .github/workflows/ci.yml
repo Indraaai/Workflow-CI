@@ -9,8 +9,8 @@ on:
       - main
 
 env:
-  CSV_URL: "MLproject/train_pca.csv"
-  TARGET_VAR: "Credit_Score"
+  CSV_URL: "MLProject/diabetes_prediction_dataset/data_clean.csv"
+  TARGET_VAR: "Outcome"
 
 jobs:
   build:
@@ -30,28 +30,38 @@ jobs:
       - name: Check Env
         run: |
           echo $CSV_URL
-      # Install mlflow
+      
+      # Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install mlflow  
+          cd MLProject
+          pip install -r requirements.txt
+          pip install mlflow
+          cd ..  
           
       # Run as a mlflow project
       - name: Run mlflow project
         run: |
-          mlflow run MLproject --env-manager=local 
+          cd MLProject
+          mlflow run . --env-manager=local
+          cd .. 
       
       # Get latest run_id
       - name: Get latest MLflow run_id
         run: |
+          cd MLProject
           RUN_ID=$(ls -td mlruns/0/*/ | head -n 1 | cut -d'/' -f3)
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
           echo "Latest run_id: $RUN_ID"
+          cd ..
           
       # Build Docker Model
       - name: Build Docker Model
         run: |
-          mlflow models build-docker --model-uri "runs:/$RUN_ID/model" --name "cc" 
+          cd MLProject
+          mlflow models build-docker --model-uri "runs:/$RUN_ID/model" --name "cc"
+          cd .. 
 
       # Login to Docker Hub
       - name: Log in to Docker Hub
