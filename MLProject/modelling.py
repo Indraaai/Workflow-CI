@@ -11,6 +11,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 import mlflow
 import mlflow.sklearn
 from pathlib import Path
+import os
 
 # Konfigurasi Logging
 logging.basicConfig(
@@ -24,14 +25,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Konfigurasi MLflow Tracking URI
-MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "file:./mlruns")
+mlflow.set_tracking_uri(tracking_uri)
+
+logger.info(f"MLFLOW_TRACKING_URI: {tracking_uri}")
+
 
 # Set experiment name
 EXPERIMENT_NAME = "Diabetes_Prediction_Experiment"
 mlflow.set_experiment(EXPERIMENT_NAME)
-
-logger.info(f"MLflow Tracking URI: {MLFLOW_TRACKING_URI}")
+MLFLOW_TRACKING_URI = mlflow.get_tracking_uri()
 logger.info(f"MLflow Experiment: {EXPERIMENT_NAME}")
 
 
@@ -105,7 +108,6 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler):
             model = GradientBoostingClassifier(
                 n_estimators=100,
                 learning_rate=0.1,
-                max_depth=5,
                 random_state=42
             )
             
