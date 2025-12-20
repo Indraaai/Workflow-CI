@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import logging
 import time
+from contextlib import nullcontext
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler
@@ -30,12 +31,13 @@ mlflow.set_tracking_uri(tracking_uri)
 
 logger.info(f"MLFLOW_TRACKING_URI: {tracking_uri}")
 
-
-# Set experiment name
-EXPERIMENT_NAME = "Diabetes_Prediction_Experiment"
-mlflow.set_experiment(EXPERIMENT_NAME)
-MLFLOW_TRACKING_URI = mlflow.get_tracking_uri()
-logger.info(f"MLflow Experiment: {EXPERIMENT_NAME}")
+# Set experiment name only if not running as MLflow project
+if not os.getenv("MLFLOW_RUN_ID"):
+    EXPERIMENT_NAME = "Diabetes_Prediction_Experiment"
+    mlflow.set_experiment(EXPERIMENT_NAME)
+    logger.info(f"MLflow Experiment: {EXPERIMENT_NAME}")
+else:
+    logger.info("Running as MLflow project, experiment already set")
 
 
 def load_data(file_path):
@@ -101,8 +103,13 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler):
         # Enable autolog 
         mlflow.sklearn.autolog()
         
-        # Mulai MLflow run
-        with mlflow.start_run(run_name="Gradient_Boosting_Classifier"):
+        # Mulai MLflow run (skip jika sudah ada run context dari MLflow project)
+        if mlflow.active_run() is None:
+            run_context = mlflow.start_run(run_name="Gradient_Boosting_Classifier")
+        else:
+            run_context = nullcontext()
+        
+        with run_context:
             
             # Initialize model dengan parameter seperti di notebook
             model = GradientBoostingClassifier(
