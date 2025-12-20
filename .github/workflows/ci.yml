@@ -1,0 +1,69 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Step 1: Checkout
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    # Step 2: Setup Python
+    - name: Set up Python 3.12.7
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12.7'
+    
+    # Step 3: Check Env
+    - name: Check Env
+      run: |
+        python --version
+        pip --version
+    
+    # Step 4: Install dependencies
+    - name: Install dependencies
+      run: |
+        pip install mlflow pandas scikit-learn
+    
+    # Step 5: Run MLflow project
+    - name: Run mlflow project
+      run: |
+        mlflow run MLProject/
+    
+    # Step 6: Get latest MLflow run_id
+    - name: Get latest MLflow run_id
+      id: get_run_id
+      run: |
+        # script untuk get run_id
+    
+    # Step 7: Upload to Google Drive
+    - name: Upload to Google Drive
+      run: |
+        # script upload
+    
+    # Step 8: Build Docker Model
+    - name: Build Docker Model
+      run: |
+        mlflow models build-docker ...
+    
+    # Step 9: Login to Docker Hub
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    # Step 10: Tag Docker Image
+    - name: Tag Docker Image
+      run: |
+        docker tag ...
+    
+    # Step 11: Push Docker Image
+    - name: Push Docker Image
+      run: |
+        docker push ...
