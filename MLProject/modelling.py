@@ -100,8 +100,7 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler):
         logger.info(f"Training Gradient Boosting Classifier")
         logger.info(f"{'='*60}")
         
-        # Enable autolog 
-        mlflow.sklearn.autolog()
+        # Disable autolog - akan log secara manual
         
         # Mulai MLflow run (skip jika sudah ada run context dari MLflow project)
         if mlflow.active_run() is None:
@@ -129,12 +128,26 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler):
             y_pred_train = model.predict(X_train)
             y_pred_test = model.predict(X_test)
             
-            # Calculate metrics untuk logging ke console
+            # Calculate metrics untuk logging
             train_accuracy = accuracy_score(y_train, y_pred_train)
             test_accuracy = accuracy_score(y_test, y_pred_test)
             test_precision = precision_score(y_test, y_pred_test, average='weighted')
             test_recall = recall_score(y_test, y_pred_test, average='weighted')
             test_f1 = f1_score(y_test, y_pred_test, average='weighted')
+            
+            # Log parameters ke MLflow
+            mlflow.log_param("n_estimators", 100)
+            mlflow.log_param("learning_rate", 0.1)
+            mlflow.log_param("random_state", 42)
+            mlflow.log_param("test_size", 0.2)
+            
+            # Log metrics ke MLflow
+            mlflow.log_metric("training_accuracy", train_accuracy)
+            mlflow.log_metric("test_accuracy", test_accuracy)
+            mlflow.log_metric("test_precision", test_precision)
+            mlflow.log_metric("test_recall", test_recall)
+            mlflow.log_metric("test_f1_score", test_f1)
+            mlflow.log_metric("training_time_seconds", training_time)
             
             # Log hasil ke console
             logger.info(f"\n=== Gradient Boosting Performance ===")
@@ -154,9 +167,10 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler):
             logger.info(f"\nConfusion Matrix:")
             logger.info(f"\n{cm}")
             
-            # Log scaler secara manual (model sudah otomatis di-log oleh autolog)
+            # Log model dan scaler secara manual
+            mlflow.sklearn.log_model(model, "model")
             mlflow.sklearn.log_model(scaler, "scaler")
-            logger.info("Model dan scaler logged to MLflow successfully (via autolog)")
+            logger.info("Model dan scaler logged to MLflow successfully")
             
             # Get run info
             run = mlflow.active_run()
@@ -217,7 +231,8 @@ def main():
         logger.info("="*60)
         
         logger.info("\nTraining completed successfully!")
-        logger.info(f"Check MLflow UI at: {MLFLOW_TRACKING_URI}")
+        logger.info(f"Check MLflow UI at: {tracking_uri}")
+
         
     except Exception as e:
         logger.error(f"Error in main: {str(e)}")
