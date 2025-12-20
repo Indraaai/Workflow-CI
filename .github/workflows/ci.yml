@@ -56,7 +56,7 @@ jobs:
       # Run MLflow project
       - name: Run MLflow Project
         env:
-          MLFLOW_TRACKING_URI: file:./MLProject/mlruns
+          MLFLOW_TRACKING_URI: file:./mlruns
         run: |
           cd MLProject
           echo "Working directory: $(pwd)"
