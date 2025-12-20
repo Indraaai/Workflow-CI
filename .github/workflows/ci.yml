@@ -35,10 +35,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          cd MLProject
-          pip install -r requirements.txt
-          pip install mlflow
-          cd ..  
+          pip install mlflow cloudpickle numpy pandas psutil pyarrow scikit-learn scipy  
           
       # Run as a mlflow project
       - name: Run mlflow project
