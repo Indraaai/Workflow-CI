@@ -44,10 +44,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mlflow-artifacts
-          path: 
-            MLProject/mlruns/
+          path: |
+            MLProject/mlruns
             MLProject/modelling.log
-            MLProject/mlartifacts/
+            MLProject/mlartifacts
+
 
 
       # Get latest MLflow run_id (SAFE, no hardcode experiment)
