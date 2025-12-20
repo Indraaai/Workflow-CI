@@ -138,9 +138,23 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler, n_estimato
             logger.info(f"\nConfusion Matrix:")
             logger.info(f"\n{cm}")
             
-            # Log scaler secara manual (model sudah otomatis di-log oleh autolog)
+            # Log model secara eksplisit (jangan rely on autolog saja)
+            logger.info("Logging model to MLflow...")
+            mlflow.sklearn.log_model(model, "model")
+            logger.info("✓ Model logged successfully")
+            
+            # Log scaler juga
             mlflow.sklearn.log_model(scaler, "scaler")
-            logger.info("Model dan scaler logged to MLflow successfully (via autolog)")
+            logger.info("✓ Scaler logged successfully")
+            
+            # Log additional metrics secara eksplisit
+            mlflow.log_metric("train_accuracy", train_accuracy)
+            mlflow.log_metric("test_accuracy", test_accuracy)
+            mlflow.log_metric("test_precision", test_precision)
+            mlflow.log_metric("test_recall", test_recall)
+            mlflow.log_metric("test_f1", test_f1)
+            mlflow.log_metric("training_time", training_time)
+            logger.info("✓ Metrics logged successfully")
             
             # Get run info
             run = mlflow.active_run()
