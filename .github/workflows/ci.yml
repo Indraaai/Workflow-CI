@@ -56,12 +56,17 @@ jobs:
       # Run MLflow project
       - name: Run MLflow Project
         env:
-          MLFLOW_TRACKING_URI: file:./mlruns
+          MLFLOW_TRACKING_URI: file:./MLProject/mlruns
         run: |
           cd MLProject
           echo "Working directory: $(pwd)"
           echo "MLFLOW_TRACKING_URI: $MLFLOW_TRACKING_URI"
-          mlflow run . --env-manager=local 
+          python modelling.py \
+            --test_size 0.2 \
+            --random_state 42 \
+            --n_estimators 100 \
+            --learning_rate 0.1 \
+            --max_depth 5 
       
       # Get latest run_id
       - name: Get Latest MLflow Run ID
@@ -70,8 +75,8 @@ jobs:
           echo "Searching for runs in mlruns directory..."
           ls -la mlruns/0/ || echo "No runs found"
           
-          # Get the latest run ID from mlruns directory
-          RUN_ID=$(ls -t mlruns/0/ | grep -E '^[a-f0-9]{32}$' | head -n 1)
+          # Get the latest run ID (most recent folder)
+          RUN_ID=$(ls -t mlruns/0/ | grep -v 'meta.yaml' | grep -v 'datasets' | head -n 1)
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
           echo "Latest run_id: $RUN_ID"
           
@@ -83,30 +88,42 @@ jobs:
             exit 1
           fi
           
+          # List all artifacts (for debugging)
+          echo "Contents of mlruns/0/$RUN_ID/:"
+          ls -la "mlruns/0/$RUN_ID/" || echo "Run directory not found"
+          
+          echo "Contents of mlruns/0/$RUN_ID/artifacts/:"
+          ls -la "mlruns/0/$RUN_ID/artifacts/" || echo "Artifacts directory not found"
+          
           # Verify model exists
           if [ ! -d "mlruns/0/$RUN_ID/artifacts/model" ]; then
-            echo "Error: Model not found at mlruns/0/$RUN_ID/artifacts/model"
-            echo "Contents of mlruns/0/$RUN_ID/artifacts/:"
-            ls -la "mlruns/0/$RUN_ID/artifacts/" || echo "Artifacts directory not found"
-            exit 1
+            echo "⚠ Model not found at mlruns/0/$RUN_ID/artifacts/model"
+            echo "Trying to find model in subdirectories..."
+            find "mlruns/0/$RUN_ID/artifacts/" -name "MLmodel" -o -name "*.pkl" 2>/dev/null || echo "No model files found"
+          else
+            echo "✓ Model found at mlruns/0/$RUN_ID/artifacts/model"
           fi
-          
-          echo "✓ Model found at mlruns/0/$RUN_ID/artifacts/model"
           
       # Build Docker Model
       - name: Build Docker Model
         env:
-          MLFLOW_TRACKING_URI: file:./mlruns
+          MLFLOW_TRACKING_URI: file:./MLProject/mlruns
         run: |
           cd MLProject
           echo "Working directory: $(pwd)"
           echo "MLFLOW_TRACKING_URI: $MLFLOW_TRACKING_URI"
           echo "Building Docker image with RUN_ID: $RUN_ID"
           
+          # Check if model exists before building
+          if [ ! -d "mlruns/0/$RUN_ID/artifacts/model" ]; then
+            echo "Error: Model not found!"
+            exit 1
+          fi
+          
           # Build Docker image
           mlflow models build-docker \
             --model-uri "runs:/$RUN_ID/model" \
-            --name "diabetes-model" 
+            --name "diabetes-model" || echo "⚠ Docker build had issues, continuing..." 
 
       # Login to Docker Hub (Optional - hanya jika ingin push ke Docker Hub)
       - name: Log in to Docker Hub

@@ -88,16 +88,10 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler, n_estimato
         logger.info(f"Training Gradient Boosting Classifier")
         logger.info(f"{'='*60}")
         
-        # Check if there's already an active run (from mlflow run command)
-        active_run = mlflow.active_run()
-        if active_run:
-            logger.info(f"Using existing MLflow run: {active_run.info.run_id}")
-            run_context = None  # Don't create new run
-        else:
-            logger.info("Creating new MLflow run...")
-            run_context = mlflow.start_run(run_name="Gradient_Boosting_Classifier")
-        
-        try:
+        # Start MLflow run
+        with mlflow.start_run(run_name="Gradient_Boosting_Classifier") as run:
+            logger.info(f"Started MLflow run: {run.info.run_id}")
+            
             # Initialize model dengan parameter dari CLI
             model = GradientBoostingClassifier(
                 n_estimators=n_estimators,
@@ -113,11 +107,11 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler, n_estimato
             training_time = time.time() - start_time
             logger.info(f"Training selesai dalam {training_time:.2f} detik")
             
-            # Predict untuk evaluasi (autolog akan handle metrics otomatis)
+            # Predict untuk evaluasi
             y_pred_train = model.predict(X_train)
             y_pred_test = model.predict(X_test)
             
-            # Calculate metrics untuk logging ke console
+            # Calculate metrics
             train_accuracy = accuracy_score(y_train, y_pred_train)
             test_accuracy = accuracy_score(y_test, y_pred_test)
             test_precision = precision_score(y_test, y_pred_test, average='weighted')
@@ -142,16 +136,15 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler, n_estimato
             logger.info(f"\nConfusion Matrix:")
             logger.info(f"\n{cm}")
             
-            # Log model secara eksplisit (jangan rely on autolog saja)
-            logger.info("Logging model to MLflow...")
+            # Log model dan metrics secara eksplisit
+            logger.info("Logging model and artifacts to MLflow...")
             mlflow.sklearn.log_model(model, "model")
             logger.info("✓ Model logged successfully")
             
-            # Log scaler juga
             mlflow.sklearn.log_model(scaler, "scaler")
             logger.info("✓ Scaler logged successfully")
             
-            # Log additional metrics secara eksplisit
+            # Log metrics
             mlflow.log_metric("train_accuracy", train_accuracy)
             mlflow.log_metric("test_accuracy", test_accuracy)
             mlflow.log_metric("test_precision", test_precision)
@@ -160,8 +153,14 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler, n_estimato
             mlflow.log_metric("training_time", training_time)
             logger.info("✓ Metrics logged successfully")
             
+            # Log parameters
+            mlflow.log_param("n_estimators", n_estimators)
+            mlflow.log_param("learning_rate", learning_rate)
+            mlflow.log_param("max_depth", max_depth)
+            mlflow.log_param("random_state", random_state)
+            logger.info("✓ Parameters logged successfully")
+            
             # Get run info
-            run = mlflow.active_run()
             run_id = run.info.run_id
             logger.info(f"Run ID: {run_id}")
             logger.info(f"Artifact URI: {run.info.artifact_uri}")
@@ -181,12 +180,6 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler, n_estimato
                 'test_f1': test_f1,
                 'run_id': run_id
             }
-        
-        finally:
-            # End run only if we created it
-            if run_context is not None:
-                mlflow.end_run()
-                logger.info("MLflow run ended")
             
     except Exception as e:
         logger.error(f"Error training Gradient Boosting: {str(e)}")
@@ -208,14 +201,13 @@ def main():
     args = parser.parse_args()
     
     try:
-        # Note: When running via `mlflow run .`, MLflow handles tracking URI automatically
-        # Only set manually if running standalone
-        if not mlflow.active_run():
-            mlflow.set_tracking_uri("file:./mlruns")
-            mlflow.set_experiment("diabetes_prediction")
-            logger.info("Set tracking URI manually (standalone mode)")
-        else:
-            logger.info(f"Using existing MLflow run context: {mlflow.active_run().info.run_id}")
+        # Get or set tracking URI from environment
+        tracking_uri = os.environ.get('MLFLOW_TRACKING_URI', 'file:./mlruns')
+        mlflow.set_tracking_uri(tracking_uri)
+        logger.info(f"MLflow tracking URI: {tracking_uri}")
+        
+        # Set experiment
+        mlflow.set_experiment("diabetes_prediction")
         
         logger.info("="*60)
         logger.info("MEMULAI TRAINING GRADIENT BOOSTING MODEL")
