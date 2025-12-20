@@ -39,102 +39,37 @@ jobs:
           mlflow run . --env-manager=local
           cd ..
 
-      # Commit dan push artifacts ke GitHub
-      - name: Commit and Push Artifacts to GitHub
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          
-          # Add MLflow artifacts
-          git add MLProject/mlruns/
-          git add MLProject/mlartifacts/
-          git add MLProject/modelling.log
-          
-          # Check if there are changes to commit
-          if git diff --cached --quiet; then
-            echo " No new artifacts to commit"
-          else
-            git commit -m " MLflow artifacts from run: $(date '+%Y-%m-%d %H:%M:%S')"
-            git push origin main
-            echo " Artifacts pushed to GitHub"
-          fi
+      # Commit dan push artifacts ke GitHub action
+      - name: Upload MLflow Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlflow-artifacts
+          path: 
+            MLProject/mlruns/
+            MLProject/modelling.log
+            MLProject/mlartifacts/
 
-      # Get latest MLflow run_id (Python script - more reliable)
+
+      # Get latest MLflow run_id (SAFE, no hardcode experiment)
       - name: Get latest MLflow run_id
         run: |
           cd MLProject
-          python3 << 'PYTHON_EOF'
-          import os
-          import glob
-          import json
-          from pathlib import Path
 
-          # Set MLflow tracking URI
-          os.environ["MLFLOW_TRACKING_URI"] = "file:./mlruns"
+          echo "Searching latest MLflow run..."
+          RUN_ID=$(find mlruns -mindepth 2 -maxdepth 2 -type d \
+            | grep -E '[a-f0-9]{32}$' \
+            | sort -r \
+            | head -n 1 \
+            | xargs basename)
 
-          try:
-              from mlflow.tracking import MlflowClient
-              
-              client = MlflowClient("file:./mlruns")
-              
-              # Get all experiments
-              experiments = client.search_experiments()
-              print(f"Found {len(experiments)} experiments")
-              
-              # Find the Diabetes_Prediction_Experiment
-              experiment_id = None
-              for exp in experiments:
-                  print(f"  Experiment: {exp.name} (ID: {exp.experiment_id})")
-                  if exp.name == "Diabetes_Prediction_Experiment":
-                      experiment_id = exp.experiment_id
-                      break
-              
-              if not experiment_id:
-                  # Try default experiment (ID: 0)
-                  experiment_id = "0"
-                  print(f"Using default experiment ID: {experiment_id}")
-              
-              # Get latest run
-              runs = client.search_runs(
-                  experiment_ids=[experiment_id],
-                  order_by=["start_time DESC"],
-                  max_results=1
-              )
-              
-              if runs:
-                  run_id = runs[0].info.run_id
-                  print(f"✅ Latest run_id: {run_id}")
-                  
-                  # Write to file for shell to read
-                  with open("/tmp/run_id.txt", "w") as f:
-                      f.write(run_id)
-              else:
-                  print("❌ No runs found")
-                  exit(1)
-                  
-          except Exception as e:
-              print(f"❌ Error: {e}")
-              # Fallback: search directory structure
-              run_dirs = glob.glob("mlruns/0/*")
-              if run_dirs:
-                  run_id = Path(run_dirs[-1]).name  # Get latest
-                  print(f"⚠️ Fallback run_id from directory: {run_id}")
-                  with open("/tmp/run_id.txt", "w") as f:
-                      f.write(run_id)
-              else:
-                  print("❌ Could not find any run ID")
-                  exit(1)
-          PYTHON_EOF
-          
-          # Read and set RUN_ID from file
-          if [ -f /tmp/run_id.txt ]; then
-            RUN_ID=$(cat /tmp/run_id.txt)
-            echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
-            echo "✅ Set RUN_ID=$RUN_ID"
-          else
-            echo "❌ Failed to extract RUN_ID"
+          if [ -z "$RUN_ID" ]; then
+            echo " No MLflow run found"
+            find mlruns -type d
             exit 1
           fi
+
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+          echo " Latest run_id: $RUN_ID"
           cd ..
 
       # Build Docker image from MLflow model
