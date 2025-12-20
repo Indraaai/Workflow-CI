@@ -1,9 +1,8 @@
-
-
 import pandas as pd
 import numpy as np
 import logging
 import time
+import argparse
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler
@@ -23,17 +22,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Konfigurasi MLflow Tracking URI
-MLFLOW_TRACKING_URI = "http://127.0.0.1:5000"
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-
-# Set experiment name
-EXPERIMENT_NAME = "Diabetes_Prediction_Experiment"
-mlflow.set_experiment(EXPERIMENT_NAME)
-
-logger.info(f"MLflow Tracking URI: {MLFLOW_TRACKING_URI}")
-logger.info(f"MLflow Experiment: {EXPERIMENT_NAME}")
-
 
 def load_data(file_path):
     """
@@ -49,7 +37,7 @@ def load_data(file_path):
         raise
 
 
-def prepare_data(df):
+def prepare_data(df, test_size=0.2, random_state=42):
     """
     Prepare data untuk training dengan scaling
     """
@@ -66,7 +54,7 @@ def prepare_data(df):
         
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.2, random_state=42, stratify=y
+            X, y, test_size=test_size, random_state=random_state, stratify=y
         )
         
         logger.info(f"Training set: {X_train.shape}")
@@ -86,7 +74,7 @@ def prepare_data(df):
         raise
 
 
-def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler):
+def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler, n_estimators=100, learning_rate=0.1, max_depth=5, random_state=42):
     """
     Train Gradient Boosting Classifier dengan MLflow autolog
     """
@@ -101,12 +89,12 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler):
         # Mulai MLflow run
         with mlflow.start_run(run_name="Gradient_Boosting_Classifier"):
             
-            # Initialize model dengan parameter seperti di notebook
+            # Initialize model dengan parameter dari CLI
             model = GradientBoostingClassifier(
-                n_estimators=100,
-                learning_rate=0.1,
-                max_depth=5,
-                random_state=42
+                n_estimators=n_estimators,
+                learning_rate=learning_rate,
+                max_depth=max_depth,
+                random_state=random_state
             )
             
             # Train model dengan timing
@@ -151,8 +139,14 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler):
             
             # Get run info
             run = mlflow.active_run()
-            logger.info(f"Run ID: {run.info.run_id}")
+            run_id = run.info.run_id
+            logger.info(f"Run ID: {run_id}")
             logger.info(f"Artifact URI: {run.info.artifact_uri}")
+            
+            # Save run_id to file for CI/CD pipeline
+            with open('mlflow_run_id.txt', 'w') as f:
+                f.write(run_id)
+            logger.info(f"Run ID saved to mlflow_run_id.txt")
             
             return {
                 'model_name': 'Gradient Boosting',
@@ -162,7 +156,7 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler):
                 'test_precision': test_precision,
                 'test_recall': test_recall,
                 'test_f1': test_f1,
-                'run_id': run.info.run_id
+                'run_id': run_id
             }
             
     except Exception as e:
@@ -174,24 +168,43 @@ def main():
     """
     Main function untuk menjalankan pipeline ML
     """
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Train Gradient Boosting model for diabetes prediction')
+    parser.add_argument('--test_size', type=float, default=0.2, help='Test set size (default: 0.2)')
+    parser.add_argument('--random_state', type=int, default=42, help='Random state (default: 42)')
+    parser.add_argument('--n_estimators', type=int, default=100, help='Number of estimators (default: 100)')
+    parser.add_argument('--learning_rate', type=float, default=0.1, help='Learning rate (default: 0.1)')
+    parser.add_argument('--max_depth', type=int, default=5, help='Max depth (default: 5)')
+    
+    args = parser.parse_args()
+    
     try:
         logger.info("="*60)
         logger.info("MEMULAI TRAINING GRADIENT BOOSTING MODEL")
         logger.info("="*60)
+        logger.info(f"Parameters:")
+        logger.info(f"  test_size: {args.test_size}")
+        logger.info(f"  random_state: {args.random_state}")
+        logger.info(f"  n_estimators: {args.n_estimators}")
+        logger.info(f"  learning_rate: {args.learning_rate}")
+        logger.info(f"  max_depth: {args.max_depth}")
         
         # Load data
         data_path = Path("diabetes_prediction_dataset/data_clean.csv")
         if not data_path.exists():
             logger.error(f"File {data_path} tidak ditemukan!")
-            return
+            raise FileNotFoundError(f"Dataset not found at {data_path}")
         
         df = load_data(data_path)
         
         # Prepare data dengan scaling
-        X_train, X_test, y_train, y_test, scaler = prepare_data(df)
+        X_train, X_test, y_train, y_test, scaler = prepare_data(df, args.test_size, args.random_state)
         
         # Train Gradient Boosting model
-        result = train_gradient_boosting(X_train, X_test, y_train, y_test, scaler)
+        result = train_gradient_boosting(
+            X_train, X_test, y_train, y_test, scaler,
+            args.n_estimators, args.learning_rate, args.max_depth, args.random_state
+        )
         
         # Summary results
         logger.info("\n" + "="*60)
@@ -208,7 +221,6 @@ def main():
         logger.info("="*60)
         
         logger.info("\nTraining completed successfully!")
-        logger.info(f"Check MLflow UI at: {MLFLOW_TRACKING_URI}")
         
     except Exception as e:
         logger.error(f"Error in main: {str(e)}")
