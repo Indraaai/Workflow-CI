@@ -81,19 +81,23 @@ def prepare_data(df, test_size=0.2, random_state=42):
 
 def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler, n_estimators=100, learning_rate=0.1, max_depth=5, random_state=42):
     """
-    Train Gradient Boosting Classifier dengan MLflow autolog
+    Train Gradient Boosting Classifier dengan MLflow logging
     """
     try:
         logger.info(f"\n{'='*60}")
         logger.info(f"Training Gradient Boosting Classifier")
         logger.info(f"{'='*60}")
         
-        # Enable autolog 
-        mlflow.sklearn.autolog()
+        # Check if there's already an active run (from mlflow run command)
+        active_run = mlflow.active_run()
+        if active_run:
+            logger.info(f"Using existing MLflow run: {active_run.info.run_id}")
+            run_context = None  # Don't create new run
+        else:
+            logger.info("Creating new MLflow run...")
+            run_context = mlflow.start_run(run_name="Gradient_Boosting_Classifier")
         
-        # Mulai MLflow run
-        with mlflow.start_run(run_name="Gradient_Boosting_Classifier"):
-            
+        try:
             # Initialize model dengan parameter dari CLI
             model = GradientBoostingClassifier(
                 n_estimators=n_estimators,
@@ -177,6 +181,12 @@ def train_gradient_boosting(X_train, X_test, y_train, y_test, scaler, n_estimato
                 'test_f1': test_f1,
                 'run_id': run_id
             }
+        
+        finally:
+            # End run only if we created it
+            if run_context is not None:
+                mlflow.end_run()
+                logger.info("MLflow run ended")
             
     except Exception as e:
         logger.error(f"Error training Gradient Boosting: {str(e)}")
@@ -198,9 +208,14 @@ def main():
     args = parser.parse_args()
     
     try:
-        # Setup MLflow tracking
-        mlflow.set_tracking_uri("file:./mlruns")
-        mlflow.set_experiment("diabetes_prediction")
+        # Note: When running via `mlflow run .`, MLflow handles tracking URI automatically
+        # Only set manually if running standalone
+        if not mlflow.active_run():
+            mlflow.set_tracking_uri("file:./mlruns")
+            mlflow.set_experiment("diabetes_prediction")
+            logger.info("Set tracking URI manually (standalone mode)")
+        else:
+            logger.info(f"Using existing MLflow run context: {mlflow.active_run().info.run_id}")
         
         logger.info("="*60)
         logger.info("MEMULAI TRAINING GRADIENT BOOSTING MODEL")
